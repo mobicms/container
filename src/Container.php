@@ -33,42 +33,7 @@ final class Container implements ContainerInterface
 
     public function __construct(array $config = [])
     {
-        $services = (array) ($config['services'] ?? []);
-        $factories = (array) ($config['factories'] ?? []);
-        $definitions = (array) ($config['definitions'] ?? []);
-        $aliases = (array) ($config['aliases'] ?? []);
-
-        /**
-         * @var string       $serviceId
-         * @var array|object $service
-         */
-        foreach ($services as $serviceId => $service) {
-            $this->setService($serviceId, $service);
-        }
-
-        /**
-         * @var string          $factoryId
-         * @var string|callable $factory
-         */
-        foreach ($factories as $factoryId => $factory) {
-            $this->setFactory($factoryId, $factory);
-        }
-
-        /**
-         * @var string $definitionId
-         * @var string $definition
-         */
-        foreach ($definitions as $definitionId => $definition) {
-            $this->setDefinition($definitionId, $definition);
-        }
-
-        /**
-         * @var string $aliasId
-         * @var string $alias
-         */
-        foreach ($aliases as $aliasId => $alias) {
-            $this->setAlias($aliasId, $alias);
-        }
+        $this->resolveConfig($config);
     }
 
     public function setService(string $id, array|object $service): void
@@ -234,5 +199,45 @@ final class Container implements ContainerInterface
         }
 
         return $arguments;
+    }
+
+    private function resolveConfig(array $config): void
+    {
+        $services = (array) ($config['services'] ?? []);
+        $factories = (array) ($config['factories'] ?? []);
+        $definitions = (array) ($config['definitions'] ?? []);
+        $aliases = (array) ($config['aliases'] ?? []);
+
+        /**
+         * @var string       $serviceId
+         * @var array|object $service
+         */
+        foreach ($services as $serviceId => $service) {
+            $this->setService($serviceId, $service);
+        }
+
+        /**
+         * @var string          $factoryId
+         * @var string|callable $factory
+         */
+        foreach ($factories as $factoryId => $factory) {
+            $this->setFactory($factoryId, $factory);
+        }
+
+        /**
+         * @var string $definitionId
+         * @var string $definition
+         */
+        foreach ($definitions as $definitionId => $definition) {
+            $this->setDefinition($definitionId, $definition);
+        }
+
+        /**
+         * @var string $aliasId
+         * @var string $alias
+         */
+        foreach ($aliases as $aliasId => $alias) {
+            $this->setAlias($aliasId, $alias);
+        }
     }
 }
