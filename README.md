@@ -10,7 +10,19 @@
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=mobicms_container&metric=alert_status)](https://sonarcloud.io/summary/overall?id=mobicms_container)
 
 
+## Installation
+
+The preferred method of installation is via [Composer](http://getcomposer.org). Run the following
+command to install the package and add it as a requirement to your project's
+`composer.json`:
+
+```bash
+composer require mobicms/container
+```
+
 ## Usage
+Documentation is in the process of writing and will be available later...  
+[Example of using it in a real project](https://github.com/mobicms/mobicms/blob/main/system/config/container.php).
 
 
 ## Contributing
