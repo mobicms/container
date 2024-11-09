@@ -10,6 +10,7 @@ class FakeClassWithDependencies
 {
     private ContainerInterface $container;
 
+    /** @phpstan-ignore constructor.unusedParameter */
     public function __construct(ContainerInterface $container, string $defaultValue = 'test')
     {
         $this->container = $container;

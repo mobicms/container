@@ -9,7 +9,7 @@ use Psr\Container\ContainerInterface;
 
 class FakeFactory
 {
-    public function __invoke(ContainerInterface $container)
+    public function __invoke(ContainerInterface $container): object
     {
         return new ArrayObject(['faketest' => 'fakestring']);
     }
