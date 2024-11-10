@@ -31,11 +31,17 @@ final class Container implements ContainerInterface
     /** @var array<string, string> */
     private array $aliases = [];
 
+    /**
+     * @param array<mixed> $config
+     */
     public function __construct(array $config = [])
     {
         $this->resolveConfig($config);
     }
 
+    /**
+     * @param array<mixed>|object $service
+     */
     public function setService(string $id, array|object $service): void
     {
         if ($this->has($id)) {
@@ -201,6 +207,9 @@ final class Container implements ContainerInterface
         return $arguments;
     }
 
+    /**
+     * @param array<mixed> $config
+     */
     private function resolveConfig(array $config): void
     {
         $services = (array) ($config['services'] ?? []);
@@ -210,7 +219,7 @@ final class Container implements ContainerInterface
 
         /**
          * @var string       $serviceId
-         * @var array|object $service
+         * @var array<mixed>|object $service
          */
         foreach ($services as $serviceId => $service) {
             $this->setService($serviceId, $service);
