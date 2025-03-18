@@ -17,6 +17,9 @@ use function is_callable;
 use function is_string;
 use function sprintf;
 
+/**
+ * @psalm-api
+ */
 final class Container implements ContainerInterface
 {
     /** @var array<string, mixed> */
@@ -102,6 +105,7 @@ final class Container implements ContainerInterface
         }
     }
 
+    #[\Override]
     public function has(string $id): bool
     {
         return array_key_exists($id, $this->services)
@@ -110,6 +114,7 @@ final class Container implements ContainerInterface
             || isset($this->aliases[$id]);
     }
 
+    #[\Override]
     public function get(string $id): mixed
     {
         if (array_key_exists($id, $this->services)) {
