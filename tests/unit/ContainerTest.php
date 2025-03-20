@@ -2,60 +2,172 @@
 
 declare(strict_types=1);
 
-namespace MobicmsTest\Container;
-
-use ArrayObject;
 use Mobicms\Container\Container;
 use Mobicms\Container\Exception\AlreadyExistsException;
 use Mobicms\Container\Exception\InvalidAliasException;
 use Mobicms\Container\Exception\NotFoundException;
-use PHPUnit\Framework\TestCase;
+use MobicmsTest\Container\FakeClassWithDependencies;
+use MobicmsTest\Container\FakeClassWithoutConstructor;
+use MobicmsTest\Container\FakeFactory;
+use MobicmsTest\Container\FakeInvalidClass;
 use Psr\Container\ContainerInterface;
-use ReflectionException;
 
-class ContainerTest extends TestCase
-{
-    public function testHasMethodAndConfigurationViaConstructor(): void
-    {
-        $container = new Container(
-            [
-                'services'    => ['foo' => []],
-                'factories'   => ['bar' => fn() => new ArrayObject()],
-                'definitions' => ['baz' => ArrayObject::class],
-                'aliases'     => ['bat' => 'foo'],
-            ]
-        );
-        self::assertTrue($container->has('foo'));
-        self::assertTrue($container->has('bar'));
-        self::assertTrue($container->has('baz'));
-        self::assertTrue($container->has('bat'));
-    }
+test('Ability to pass configuration through the constructor', function () {
+    $container = new Container(
+        [
+            'services'    => ['foo' => []],
+            'factories'   => ['bar' => fn() => new ArrayObject()],
+            'definitions' => ['baz' => ArrayObject::class],
+            'aliases'     => ['bat' => 'foo'],
+        ]
+    );
+    expect($container->has('foo'))->toBeTrue()
+        ->and($container->has('bar'))->toBeTrue()
+        ->and($container->has('baz'))->toBeTrue()
+        ->and($container->has('bat'))->toBeTrue();
+});
 
-    public function testConfigurationThrowExceptionOnFactoryWithDuplicatedKey(): void
-    {
-        $this->expectException(AlreadyExistsException::class);
+test('Test "setService" method', function () {
+    $container = new Container();
+    expect($container->has('foo'))->toBeFalse();
+    $container->setService('foo', []);
+    expect($container->has('foo'))->toBeTrue();
+});
+
+test('Test "setFactory" method', function () {
+    $container = new Container();
+    expect($container->has('foo'))->toBeFalse();
+    $container->setFactory('foo', fn() => new ArrayObject());
+    expect($container->has('foo'))->toBeTrue();
+});
+
+test('Test "setDefinition" method', function () {
+    $container = new Container();
+    expect($container->has('foo'))->toBeFalse();
+    $container->setDefinition('foo', 'bar');
+    expect($container->has('foo'))->toBeTrue();
+});
+
+test('Test "setAlias" method', function () {
+    $container = new Container(
+        [
+            'services'    => ['foo' => []],
+            'factories'   => ['bar' => fn() => new ArrayObject()],
+            'definitions' => ['baz' => ArrayObject::class],
+        ]
+    );
+    expect($container->has('alias1'))->toBeFalse()
+        ->and($container->has('alias2'))->toBeFalse()
+        ->and($container->has('alias3'))->toBeFalse();
+    $container->setAlias('alias1', 'foo');
+    $container->setAlias('alias2', 'bar');
+    $container->setAlias('alias3', 'baz');
+    expect($container->has('alias1'))->toBeTrue()
+        ->and($container->has('alias2'))->toBeTrue()
+        ->and($container->has('alias3'))->toBeTrue();
+});
+
+describe('get() method:', function () {
+    $container = new Container(
+        [
+            'services'    => ['foo' => ['bar', 'baz', 'bat']],
+            'aliases'     => ['foo_alias' => 'foo'],
+            'factories'   =>
+                [
+                    'bar'             => fn() => new ArrayObject(['test' => 'string']),
+                    'fake_factory'    => FakeFactory::class,
+                    'invalid_factory' => FakeClassWithoutConstructor::class,
+                    'unknown_factory' => Unknown::class,
+                ],
+            'definitions' =>
+                [
+                    'class_with_dependencies'    => FakeClassWithDependencies::class,
+                    'class_without_dependencies' => FakeClassWithoutConstructor::class,
+                    'unknown_class'              => Unknown::class,
+                ],
+        ]
+    );
+    $container->setService(ContainerInterface::class, $container);
+
+    test('returns defined service', function () use ($container) {
+        expect($container->get('foo'))->toEqual(['bar', 'baz', 'bat']);
+    });
+
+    test('returns alias of defined service', function () use ($container) {
+        expect($container->get('foo_alias'))->toEqual(['bar', 'baz', 'bat']);
+    });
+
+    test('returns factory defined via closure function', function () use ($container) {
+        $closure = $container->get('bar');
+        expect($closure->offsetGet('test'))->toEqual('string');
+    });
+
+    test('returns factory defined via factory class', function () use ($container) {
+        $class = $container->get('fake_factory');
+        expect($class->offsetGet('faketest'))->toEqual('fakestring');
+    });
+
+    test('returns defined class with dependencies', function () use ($container) {
+        $class = $container->get('class_with_dependencies');
+        expect($class->get())->toEqual(['bar', 'baz', 'bat']);
+    });
+
+    test('returns undefined class with dependencies', function () use ($container) {
+        $class = $container->get(FakeClassWithDependencies::class);
+        expect($class->get())->toEqual(['bar', 'baz', 'bat']);
+    });
+
+    test('returns defined class without dependencies', function () use ($container) {
+        $class = $container->get('class_without_dependencies');
+        expect($class->get())->toEqual('test');
+    });
+
+    test('returns undefined class without dependencies', function () use ($container) {
+        $class = $container->get(FakeClassWithoutConstructor::class);
+        expect($class->get())->toEqual('test');
+    });
+
+    it('throw exception on unknown defined class', function () use ($container) {
+        $container->get('unknown_class');
+    })->throws(NotFoundException::class);
+
+    it('throw exception on unknown undefined class', function () use ($container) {
+        $container->get(Unknown::class);
+    })->throws(NotFoundException::class);
+
+    it('throw exception on invalid factory', function () use ($container) {
+        $container->get('invalid_factory');
+    })->throws(NotFoundException::class);
+
+    it('throw exception on unknown factory', function () use ($container) {
+        $container->get('unknown_factory');
+    })->throws(NotFoundException::class);
+
+    it('throw exception on invalid class', function () use ($container) {
+        $container->get(FakeInvalidClass::class);
+    })->throws(ReflectionException::class);
+});
+
+describe('Exception handling:', function () {
+    test('configuration, on factory with duplicated key', function () {
         new Container(
             [
                 'services'  => ['foo' => []],
                 'factories' => ['foo' => fn() => new ArrayObject()],
             ]
         );
-    }
+    })->throws(AlreadyExistsException::class);
 
-    public function testConfigurationThrowExceptionOnDefinitionWithDuplicatedKey(): void
-    {
-        $this->expectException(AlreadyExistsException::class);
+    test('configuration, on definition with duplicated key', function () {
         new Container(
             [
                 'services'    => ['foo' => []],
                 'definitions' => ['foo' => ArrayObject::class],
             ]
         );
-    }
+    })->throws(AlreadyExistsException::class);
 
-    public function testConfigurationThrowExceptionOnAliasWithDuplicatedKey(): void
-    {
-        $this->expectException(AlreadyExistsException::class);
+    test('configuration, on alias with duplicated key', function () {
         new Container(
             [
                 'services'  => ['foo' => []],
@@ -63,176 +175,25 @@ class ContainerTest extends TestCase
                 'aliases'   => ['foo' => 'bar'],
             ]
         );
-    }
+    })->throws(AlreadyExistsException::class);
 
-    public function testSetServiceMethod(): void
-    {
-        $container = new Container();
-        self::assertFalse($container->has('foo'));
-        $container->setService('foo', []);
-        self::assertTrue($container->has('foo'));
-    }
-
-    public function testSetServiceMethodThrowExceptionOnDuplicatedId(): void
-    {
-        $this->expectException(AlreadyExistsException::class);
+    test('"setService" method, on duplicated id', function () {
         $container = new Container(['services' => ['foo' => []],]);
         $container->setService('foo', []);
-    }
+    })->throws(AlreadyExistsException::class);
 
-    public function testSetFactoryMethod(): void
-    {
-        $container = new Container();
-        self::assertFalse($container->has('bar'));
-        $container->setFactory('bar', fn() => new ArrayObject());
-        self::assertTrue($container->has('bar'));
-    }
-
-    public function testSetFactoryMethodThrowExceptionOnDuplicatedId(): void
-    {
-        $this->expectException(AlreadyExistsException::class);
+    test('"setFactory" method, on duplicated id', function () {
         $container = new Container(['services' => ['foo' => []],]);
         $container->setFactory('foo', fn() => new ArrayObject());
-    }
+    })->throws(AlreadyExistsException::class);
 
-    public function testSetDefinitionMethod(): void
-    {
-        $container = new Container();
-        self::assertFalse($container->has('baz'));
-        $container->setDefinition('baz', ArrayObject::class);
-        self::assertTrue($container->has('baz'));
-    }
-
-    public function testSetDefinitionMethodThrowExceptionOnDuplicatedId(): void
-    {
-        $this->expectException(AlreadyExistsException::class);
+    test('"setDefinition" method, on duplicated id', function () {
         $container = new Container(['services' => ['foo' => []],]);
-        $container->setDefinition('foo', ArrayObject::class);
-    }
+        $container->setDefinition('foo', 'bar');
+    })->throws(AlreadyExistsException::class);
 
-    public function testSetAliasMethod(): void
-    {
-        $container = new Container(
-            [
-                'services'    => ['foo' => []],
-                'factories'   => ['bar' => fn() => new ArrayObject()],
-                'definitions' => ['baz' => ArrayObject::class],
-            ]
-        );
-        self::assertFalse($container->has('alias1'));
-        self::assertFalse($container->has('alias2'));
-        self::assertFalse($container->has('alias3'));
-        $container->setAlias('alias1', 'foo');
-        $container->setAlias('alias2', 'bar');
-        $container->setAlias('alias3', 'baz');
-        self::assertTrue($container->has('alias1'));
-        self::assertTrue($container->has('alias2'));
-        self::assertTrue($container->has('alias3'));
-    }
-
-    public function testSetAliasThrowExceptionOnUndefinedService(): void
-    {
-        $this->expectException(InvalidAliasException::class);
+    test('"setAlias" method on undefined service', function () {
         $container = new Container();
         $container->setAlias('alias1', 'foo');
-    }
-
-    public function testGetMethodReturnDefinedServices(): void
-    {
-        $container = $this->getContainer();
-
-        // Get defined service
-        self::assertIsArray($container->get('foo'));
-
-        // Get alias of defined service
-        self::assertIsArray($container->get('bat'));
-
-        // Get factory defined via closure function
-        $closureFactory = $container->get('bar');
-        self::assertSame('string', $closureFactory->offsetGet('test'));
-
-        // Get factory defined via factory class
-        $closureClass = $container->get('fake_factory');
-        self::assertSame('fakestring', $closureClass->offsetGet('faketest'));
-
-        // Get defined class with dependencies injection
-        $definedClassWithDependencies = $container->get('class_with_dependencies');
-        self::assertIsArray($definedClassWithDependencies->get());
-
-        // Get undefined class with dependencies injection
-        $undefinedClassWithDependencies = $container->get(FakeClassWithDependencies::class);
-        self::assertIsArray($undefinedClassWithDependencies->get());
-
-        // Get defined class without dependencies
-        $definedClassWithoutDependencies = $container->get('class_without_dependencies');
-        self::assertSame('test', $definedClassWithoutDependencies->get());
-
-        // Get undefined class without dependencies
-        $undefinedClassWithoutDependencies = $container->get(FakeClassWithoutConstructor::class);
-        self::assertSame('test', $undefinedClassWithoutDependencies->get());
-    }
-
-    public function testGetMethodThrowExceptionOnUnknownDefinedClass(): void
-    {
-        $this->expectException(NotFoundException::class);
-        $container = $this->getContainer();
-        $container->get('unknown_class');
-    }
-
-    public function testGetMethodThrowExceptionOnUnknownUndefinedClass(): void
-    {
-        $this->expectException(NotFoundException::class);
-        $container = $this->getContainer();
-        /** @phpstan-ignore class.notFound */
-        $container->get(Unknown::class);
-    }
-
-    public function testGetMethodThrowExceptionOnInvalidFactory(): void
-    {
-        $this->expectException(NotFoundException::class);
-        $container = $this->getContainer();
-        $container->get('invalid_factory');
-    }
-
-    public function testGetMethodThrowExceptionOnUnknownFactory(): void
-    {
-        $this->expectException(NotFoundException::class);
-        $container = $this->getContainer();
-        $container->get('unknown_factory');
-    }
-
-    public function testGetMethodThrowExceptionOnInvalidClass(): void
-    {
-        $this->expectException(ReflectionException::class);
-        $container = $this->getContainer();
-        $container->get(FakeInvalidClass::class);
-    }
-
-    private function getContainer(): Container
-    {
-        $config = [
-            'services'    => ['foo' => [],],
-            'aliases'     => ['bat' => 'foo'],
-            'factories'   =>
-                [
-                    'bar'             => fn() => new ArrayObject(['test' => 'string']),
-                    'fake_factory'    => FakeFactory::class,
-                    'invalid_factory' => FakeClassWithoutConstructor::class,
-                    /** @phpstan-ignore class.notFound */
-                    'unknown_factory' => Unknown::class,
-                ],
-            'definitions' =>
-                [
-                    'class_with_dependencies'    => FakeClassWithDependencies::class,
-                    'class_without_dependencies' => FakeClassWithoutConstructor::class,
-                    /** @phpstan-ignore class.notFound */
-                    'unknown_class'              => Unknown::class,
-                ],
-        ];
-
-        $container = new Container($config);
-        $container->setService(ContainerInterface::class, $container);
-
-        return $container;
-    }
-}
+    })->throws(InvalidAliasException::class);
+});
