@@ -12,21 +12,6 @@ use MobicmsTest\Container\FakeFactory;
 use MobicmsTest\Container\FakeInvalidClass;
 use Psr\Container\ContainerInterface;
 
-test('Ability to pass configuration through the constructor', function () {
-    $container = new Container(
-        [
-            'services'    => ['foo' => []],
-            'factories'   => ['bar' => fn() => new ArrayObject()],
-            'definitions' => ['baz' => ArrayObject::class],
-            'aliases'     => ['bat' => 'foo'],
-        ]
-    );
-    expect($container->has('foo'))->toBeTrue()
-        ->and($container->has('bar'))->toBeTrue()
-        ->and($container->has('baz'))->toBeTrue()
-        ->and($container->has('bat'))->toBeTrue();
-});
-
 test('Test "setService" method', function () {
     $container = new Container();
     expect($container->has('foo'))->toBeFalse();
@@ -65,6 +50,51 @@ test('Test "setAlias" method', function () {
     expect($container->has('alias1'))->toBeTrue()
         ->and($container->has('alias2'))->toBeTrue()
         ->and($container->has('alias3'))->toBeTrue();
+});
+
+describe('Configuration through the constructor:', function () {
+    test('ability to pass', function () {
+        $container = new Container(
+            [
+                'services'    => ['foo' => []],
+                'factories'   => ['bar' => fn() => new ArrayObject()],
+                'definitions' => ['baz' => ArrayObject::class],
+                'aliases'     => ['bat' => 'foo'],
+            ]
+        );
+        expect($container->has('foo'))->toBeTrue()
+            ->and($container->has('bar'))->toBeTrue()
+            ->and($container->has('baz'))->toBeTrue()
+            ->and($container->has('bat'))->toBeTrue();
+    });
+
+    it('throw exception on factory with duplicated key', function () {
+        new Container(
+            [
+                'services'  => ['foo' => []],
+                'factories' => ['foo' => fn() => new ArrayObject()],
+            ]
+        );
+    })->throws(AlreadyExistsException::class);
+
+    it('throw exception on definition with duplicated key', function () {
+        new Container(
+            [
+                'services'    => ['foo' => []],
+                'definitions' => ['foo' => ArrayObject::class],
+            ]
+        );
+    })->throws(AlreadyExistsException::class);
+
+    it('throw exception on alias with duplicated key', function () {
+        new Container(
+            [
+                'services'  => ['foo' => []],
+                'factories' => ['bar' => fn() => new ArrayObject()],
+                'aliases'   => ['foo' => 'bar'],
+            ]
+        );
+    })->throws(AlreadyExistsException::class);
 });
 
 describe('get() method:', function () {
@@ -149,34 +179,6 @@ describe('get() method:', function () {
 });
 
 describe('Exception handling:', function () {
-    test('configuration, on factory with duplicated key', function () {
-        new Container(
-            [
-                'services'  => ['foo' => []],
-                'factories' => ['foo' => fn() => new ArrayObject()],
-            ]
-        );
-    })->throws(AlreadyExistsException::class);
-
-    test('configuration, on definition with duplicated key', function () {
-        new Container(
-            [
-                'services'    => ['foo' => []],
-                'definitions' => ['foo' => ArrayObject::class],
-            ]
-        );
-    })->throws(AlreadyExistsException::class);
-
-    test('configuration, on alias with duplicated key', function () {
-        new Container(
-            [
-                'services'  => ['foo' => []],
-                'factories' => ['bar' => fn() => new ArrayObject()],
-                'aliases'   => ['foo' => 'bar'],
-            ]
-        );
-    })->throws(AlreadyExistsException::class);
-
     test('"setService" method, on duplicated id', function () {
         $container = new Container(['services' => ['foo' => []],]);
         $container->setService('foo', []);
