@@ -12,47 +12,7 @@ use MobicmsTest\Container\FakeFactory;
 use MobicmsTest\Container\FakeInvalidClass;
 use Psr\Container\ContainerInterface;
 
-test('Test "setService" method', function () {
-    $container = new Container();
-    expect($container->has('foo'))->toBeFalse();
-    $container->setService('foo', []);
-    expect($container->has('foo'))->toBeTrue();
-});
-
-test('Test "setFactory" method', function () {
-    $container = new Container();
-    expect($container->has('foo'))->toBeFalse();
-    $container->setFactory('foo', fn() => new ArrayObject());
-    expect($container->has('foo'))->toBeTrue();
-});
-
-test('Test "setDefinition" method', function () {
-    $container = new Container();
-    expect($container->has('foo'))->toBeFalse();
-    $container->setDefinition('foo', 'bar');
-    expect($container->has('foo'))->toBeTrue();
-});
-
-test('Test "setAlias" method', function () {
-    $container = new Container(
-        [
-            'services'    => ['foo' => []],
-            'factories'   => ['bar' => fn() => new ArrayObject()],
-            'definitions' => ['baz' => ArrayObject::class],
-        ]
-    );
-    expect($container->has('alias1'))->toBeFalse()
-        ->and($container->has('alias2'))->toBeFalse()
-        ->and($container->has('alias3'))->toBeFalse();
-    $container->setAlias('alias1', 'foo');
-    $container->setAlias('alias2', 'bar');
-    $container->setAlias('alias3', 'baz');
-    expect($container->has('alias1'))->toBeTrue()
-        ->and($container->has('alias2'))->toBeTrue()
-        ->and($container->has('alias3'))->toBeTrue();
-});
-
-describe('Configuration through the constructor:', function () {
+describe('Configuration:', function () {
     test('ability to pass', function () {
         $container = new Container(
             [
@@ -95,6 +55,74 @@ describe('Configuration through the constructor:', function () {
             ]
         );
     })->throws(AlreadyExistsException::class);
+});
+
+describe('setService() method:', function () {
+    test('can set service', function () {
+        $container = new Container();
+        expect($container->has('foo'))->toBeFalse();
+        $container->setService('foo', []);
+        expect($container->has('foo'))->toBeTrue();
+    });
+
+    it('throw exception on duplicated id', function () {
+        $container = new Container(['services' => ['foo' => []],]);
+        $container->setService('foo', []);
+    })->throws(AlreadyExistsException::class);
+});
+
+describe('setFactory() method:', function () {
+    test('can set factory', function () {
+        $container = new Container();
+        expect($container->has('foo'))->toBeFalse();
+        $container->setFactory('foo', fn() => new ArrayObject());
+        expect($container->has('foo'))->toBeTrue();
+    });
+
+    it('throw exception on duplicated id', function () {
+        $container = new Container(['services' => ['foo' => []],]);
+        $container->setFactory('foo', fn() => new ArrayObject());
+    })->throws(AlreadyExistsException::class);
+});
+
+describe('setDefinition() method:', function () {
+    test('can set definition', function () {
+        $container = new Container();
+        expect($container->has('foo'))->toBeFalse();
+        $container->setDefinition('foo', 'bar');
+        expect($container->has('foo'))->toBeTrue();
+    });
+
+    it('throw exception on duplicated id', function () {
+        $container = new Container(['services' => ['foo' => []],]);
+        $container->setDefinition('foo', 'bar');
+    })->throws(AlreadyExistsException::class);
+});
+
+describe('setAlias() method:', function () {
+    test('can set alias', function () {
+        $container = new Container(
+            [
+                'services'    => ['foo' => []],
+                'factories'   => ['bar' => fn() => new ArrayObject()],
+                'definitions' => ['baz' => ArrayObject::class],
+            ]
+        );
+        expect($container->has('alias1'))->toBeFalse()
+            ->and($container->has('alias2'))->toBeFalse()
+            ->and($container->has('alias3'))->toBeFalse();
+        $container->setAlias('alias1', 'foo');
+        $container->setAlias('alias2', 'bar');
+        $container->setAlias('alias3', 'baz');
+        expect($container->has('alias1'))->toBeTrue()
+            ->and($container->has('alias2'))->toBeTrue()
+            ->and($container->has('alias3'))->toBeTrue();
+    });
+
+    it('throw exception on undefined service', function () {
+        $container = new Container();
+        $container->setAlias('alias1', 'foo');
+    })->throws(InvalidAliasException::class);
 });
 
 describe('get() method:', function () {
@@ -176,26 +204,4 @@ describe('get() method:', function () {
     it('throw exception on invalid class', function () use ($container) {
         $container->get(FakeInvalidClass::class);
     })->throws(ReflectionException::class);
-});
-
-describe('Exception handling:', function () {
-    test('"setService" method, on duplicated id', function () {
-        $container = new Container(['services' => ['foo' => []],]);
-        $container->setService('foo', []);
-    })->throws(AlreadyExistsException::class);
-
-    test('"setFactory" method, on duplicated id', function () {
-        $container = new Container(['services' => ['foo' => []],]);
-        $container->setFactory('foo', fn() => new ArrayObject());
-    })->throws(AlreadyExistsException::class);
-
-    test('"setDefinition" method, on duplicated id', function () {
-        $container = new Container(['services' => ['foo' => []],]);
-        $container->setDefinition('foo', 'bar');
-    })->throws(AlreadyExistsException::class);
-
-    test('"setAlias" method on undefined service', function () {
-        $container = new Container();
-        $container->setAlias('alias1', 'foo');
-    })->throws(InvalidAliasException::class);
 });
